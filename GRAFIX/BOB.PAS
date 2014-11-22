@@ -1,0 +1,119 @@
+program bobok;
+uses crt;
+type memptr=^memarray;
+     memarray=array[0..65534]of byte;
+     bob=record
+          x,y,m,a:word;
+         end;
+
+const bobnum=31;
+      speed=1;
+      seaga000:word=$a000;
+
+var i,j,kl:integer;
+    f:file;
+    pal:array[0..767]of byte;
+    bobs:array[0..bobnum] of bob;
+    dx,dy:array[0..bobnum]of integer;
+    orgscr,buf1scr,buf2scr,shapes:memptr;
+
+procedure loadpic;
+begin
+  assign(f,'back.gpi');
+  reset(f,1);
+  blockread(f,mem[$a000:0],64000);
+  blockread(f,pal,768);
+  close(f);
+  asm
+   push es
+   mov ax,1012h
+   xor bx,bx
+   mov cx,256
+   push ds
+   pop es
+   lea dx,pal
+   int 10h
+   pop es
+  end;
+end;
+
+procedure graphon;
+begin
+  getmem(orgscr,64000);
+  getmem(buf1scr,64000);
+  getmem(buf2scr,64000);
+  asm
+    mov ax,0013h
+    int 10h
+  end;
+end;
+
+procedure graphoff;
+begin
+  freemem(orgscr,64000);
+  freemem(buf1scr,64000);
+  freemem(buf2scr,64000);
+  asm
+    mov ax,0003h
+    int 10h
+  end;
+end;
+
+procedure screenfresh;
+assembler;
+asm
+  push ds
+  cld
+  les di,buf2scr
+  lds si,buf1scr
+  mov cx,64000 / 2
+  mov bx,0a000h
+ @scanning:
+  xor al,al
+  repz cmpsw
+  jz @exit
+  mov ax,ds:[si-2]
+  mov es:[di-2],ax
+  mov dx,es
+  mov es,bx
+  mov es:[di-2],ax
+  mov es,dx
+  jmp @scanning
+ @exit:
+  pop ds
+end;
+
+procedure clearbobs;
+assembler;
+asm
+  push bp
+  cld
+  mov dx,ds
+  lds si,orgscr
+  mov ax,ds
+  mov ds,dx
+  lea bx,bobs+6
+  les di,buf1scr
+  xor si,si
+  mov cx,bobnum+1
+ @clrcikl:
+  push cx
+  mov ds,dx
+  mov di,[bx]
+  mov si,di
+  add bx,8
+  mov ds,ax
+  mov bp,16
+ @boblines:
+  mov cx,8
+  rep movsw
+  add di,320-16
+  add si,320-16
+  dec bp
+  jnz @boblines
+  pop cx
+  loop @clrcikl
+  mov ds,dx
+  pop bp
+end;
+
